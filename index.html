@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoPackAI — Sustainability Intelligence</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="./index.css">
+<script src="./index.js" defer></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+        <i class="bi bi-chevron-left" id="toggleIcon"></i>
+    </div>
+
+    <div class="sidebar-logo">
+        <div class="logo-icon"><i class="bi bi-recycle"></i></div>
+        <div>
+            <div class="logo-text">EcoPackAI</div>
+            <div class="logo-sub">v2.0</div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-label">Navigation</div>
+        <a onclick="scrollToSection('modeSection')" class="active">
+            <i class="bi bi-grid-1x2"></i><span>Overview</span>
+        </a>
+        <a onclick="scrollToSection('analyticsSection')">
+            <i class="bi bi-graph-up-arrow"></i><span>Analytics</span>
+        </a>
+        <a onclick="scrollToSection('chartsSection')">
+            <i class="bi bi-bar-chart-line"></i><span>Charts</span>
+        </a>
+        <a onclick="scrollToSection('reportsSection')">
+            <i class="bi bi-file-earmark-arrow-down"></i><span>Reports</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="status-dot"></div>
+        <span class="status-text">API Connected</span>
+    </div>
+</aside>
+
+
+<!-- MAIN CONTENT -->
+<main class="main" id="main">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <div>
+            <h1>Sustainability <span>Intelligence</span></h1>
+            <p>AI-powered packaging material analysis & recommendation</p>
+        </div>
+        <div class="header-badge">
+            <i class="bi bi-lightning-charge-fill"></i>
+            Real-time Analysis
+        </div>
+    </div>
+
+
+    <!-- MODE SELECTOR -->
+    <section id="modeSection">
+        <div class="mode-selector card-glass" style="display:grid">
+            <div class="mode-card" id="manualModeCard" onclick="showManual()" style="cursor:pointer">
+                <div class="mode-icon">⚙️</div>
+                <h6>Manual Mode</h6>
+                <p>Input packaging parameters directly for precise AI analysis</p>
+            </div>
+            <div class="mode-card" id="wizardModeCard" onclick="openAIWizard()" style="cursor:pointer">
+                <div class="mode-icon">🤖</div>
+                <h6>AI Wizard</h6>
+                <p>Answer guided questions and let AI determine optimal parameters</p>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- MANUAL INPUT MODE -->
+    <div id="dashboard" class="card-glass">
+        <div class="card-label"><i class="bi bi-sliders"></i> Packaging Parameters</div>
+
+        <div class="input-grid">
+            <div class="input-group-custom">
+                <label>Weight Capacity <span class="range-badge">1 – 10</span></label>
+                <input id="weight_capacity_score" type="number" class="form-control" placeholder="e.g. 7" min="1" max="10" step="1">
+                <span class="field-error" id="err_weight_capacity_score"></span>
+            </div>
+            <div class="input-group-custom">
+                <label>Strength Score <span class="range-badge">1 – 10</span></label>
+                <input id="product_strength_req" type="number" class="form-control" placeholder="e.g. 8" min="1" max="10" step="1">
+                <span class="field-error" id="err_product_strength_req"></span>
+            </div>
+            <div class="input-group-custom">
+                <label>Barrier Score <span class="range-badge">1 – 10</span></label>
+                <input id="barrier_score" type="number" class="form-control" placeholder="e.g. 6" min="1" max="10" step="1">
+                <span class="field-error" id="err_barrier_score"></span>
+            </div>
+            <div class="input-group-custom">
+                <label>Reuse Potential <span class="range-badge">1 – 10</span></label>
+                <input id="reuse_potential_score" type="number" class="form-control" placeholder="e.g. 5" min="1" max="10" step="1">
+                <span class="field-error" id="err_reuse_potential_score"></span>
+            </div>
+        </div>
+
+        <button class="btn-primary-eco" onclick="predict()">
+            <i class="bi bi-lightning-charge-fill"></i> Run AI Analysis
+        </button>
+    </div>
+
+
+    <!-- AI WIZARD MODE -->
+    <div id="aiWizard" class="card-glass" style="display:none">
+        <div class="card-label"><i class="bi bi-robot"></i> EcoPackAI Assistant</div>
+        <div id="chatBox" class="chat-box"></div>
+        <div id="options" class="options-grid"></div>
+    </div>
+
+
+    <!-- METRICS -->
+    <section id="analyticsSection">
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-label"><i class="bi bi-currency-dollar"></i> Best Cost</div>
+                <div class="metric-value" id="predicted_cost">—</div>
+                <div class="metric-unit">$ per unit</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="bi bi-cloud"></i> CO₂ Score</div>
+                <div class="metric-value" id="predicted_co2">—</div>
+                <div class="metric-unit">top material</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="bi bi-arrow-down-circle"></i> CO₂ Saving</div>
+                <div class="metric-value" id="co2_reduction">—</div>
+                <div class="metric-unit">vs worst option</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="bi bi-piggy-bank"></i> Cost Saving</div>
+                <div class="metric-value" id="cost_savings">—</div>
+                <div class="metric-unit">vs worst option</div>
+            </div>
+        </div>
+
+
+        <!-- RESULTS + MATERIALS -->
+        <div class="card-glass">
+            <div class="card-label"><i class="bi bi-award"></i> Recommended Materials</div>
+            <div id="materials" class="materials-list">
+                <div style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:32px 0">
+                    <i class="bi bi-arrow-up-circle" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.3"></i>
+                    Run an analysis to see recommended materials
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- CHARTS -->
+    <section id="chartsSection">
+        <div class="card-label" style="margin-bottom:16px"><i class="bi bi-bar-chart-line"></i> Material Analytics</div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">Predicted CO₂ by Material</div>
+                <canvas id="co2Chart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Predicted Cost by Material</div>
+                <canvas id="strengthChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Suitability Score</div>
+                <canvas id="recycleChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">CO₂ vs Suitability (Normalised)</div>
+                <canvas id="radarChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- REPORTS -->
+    <section id="reportsSection" class="card-glass" style="text-align:center;margin-top:24px">
+        <div class="card-label" style="justify-content:center"><i class="bi bi-file-earmark-arrow-down"></i> Export Report</div>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px">Download a full sustainability analysis in Excel format</p>
+        <button onclick="exportExcel()" class="btn-outline-eco">
+            <i class="bi bi-file-earmark-excel"></i> Download Excel Report
+        </button>
+    </section>
+
+</main>
+</body>
+</html>
