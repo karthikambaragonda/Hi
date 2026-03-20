@@ -106,6 +106,21 @@
                 <input id="reuse_potential_score" type="number" class="form-control" placeholder="e.g. 5" min="1" max="10" step="1">
                 <span class="field-error" id="err_reuse_potential_score"></span>
             </div>
+            <div class="input-group-custom">
+                <label>Material Strength <span class="range-badge">1 – 10</span></label>
+                <input id="material_strength" type="number" class="form-control" placeholder="e.g. 7" min="1" max="10" step="1">
+                <span class="field-error" id="err_material_strength"></span>
+            </div>
+            <div class="input-group-custom">
+                <label>Biodegradability <span class="range-badge">0.1 – 1.0</span></label>
+                <input id="biodegradability" type="number" class="form-control" placeholder="e.g. 0.7" min="0.1" max="1.0" step="0.1">
+                <span class="field-error" id="err_biodegradability"></span>
+            </div>
+            <div class="input-group-custom">
+                <label>Recyclability % <span class="range-badge">0 – 100</span></label>
+                <input id="recyclability_percent" type="number" class="form-control" placeholder="e.g. 75" min="0" max="100" step="1">
+                <span class="field-error" id="err_recyclability_percent"></span>
+            </div>
         </div>
 
         <button class="btn-primary-eco" onclick="predict()">
@@ -126,24 +141,24 @@
     <section id="analyticsSection">
         <div class="metrics-row">
             <div class="metric-card">
-                <div class="metric-label"><i class="bi bi-currency-dollar"></i> Best Cost</div>
+                <div class="metric-label"><i class="bi bi-currency-dollar"></i> Est. Cost</div>
                 <div class="metric-value" id="predicted_cost">—</div>
-                <div class="metric-unit">$ per unit</div>
+                <div class="metric-unit">per unit</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label"><i class="bi bi-cloud"></i> CO₂ Score</div>
+                <div class="metric-label"><i class="bi bi-cloud"></i> CO₂ Emission</div>
                 <div class="metric-value" id="predicted_co2">—</div>
-                <div class="metric-unit">top material</div>
+                <div class="metric-unit">kg CO₂e</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label"><i class="bi bi-arrow-down-circle"></i> CO₂ Saving</div>
+                <div class="metric-label"><i class="bi bi-arrow-down-circle"></i> CO₂ Reduction</div>
                 <div class="metric-value" id="co2_reduction">—</div>
-                <div class="metric-unit">vs worst option</div>
+                <div class="metric-unit">vs baseline</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label"><i class="bi bi-piggy-bank"></i> Cost Saving</div>
+                <div class="metric-label"><i class="bi bi-piggy-bank"></i> Cost Savings</div>
                 <div class="metric-value" id="cost_savings">—</div>
-                <div class="metric-unit">vs worst option</div>
+                <div class="metric-unit">vs baseline</div>
             </div>
         </div>
 
@@ -166,19 +181,19 @@
         <div class="card-label" style="margin-bottom:16px"><i class="bi bi-bar-chart-line"></i> Material Analytics</div>
         <div class="charts-grid">
             <div class="chart-card">
-                <div class="chart-title">Predicted CO₂ by Material</div>
+                <div class="chart-title">CO₂ Emission Score</div>
                 <canvas id="co2Chart"></canvas>
             </div>
             <div class="chart-card">
-                <div class="chart-title">Predicted Cost by Material</div>
+                <div class="chart-title">Material Strength</div>
                 <canvas id="strengthChart"></canvas>
             </div>
             <div class="chart-card">
-                <div class="chart-title">Suitability Score</div>
+                <div class="chart-title">Recyclability %</div>
                 <canvas id="recycleChart"></canvas>
             </div>
             <div class="chart-card">
-                <div class="chart-title">CO₂ vs Suitability (Normalised)</div>
+                <div class="chart-title">Biodegradability</div>
                 <canvas id="radarChart"></canvas>
             </div>
         </div>

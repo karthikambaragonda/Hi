@@ -1,6 +1,6 @@
 let co2Chart, strengthChart, recycleChart, radarChart;
 
-const API_BASE = "https://ecopack-ai.azurewebsites.net";
+const API_BASE = "http://127.0.0.1:8000";
 
 /* ============ SIDEBAR ============ */
 let sidebarCollapsed = false;
@@ -45,15 +45,18 @@ function animateValue(id, value) {
 
 /* ============ FIELD DEFINITIONS ============ */
 const FIELD_RULES = [
-    { id: 'weight_capacity_score', label: 'Weight Capacity',  min: 1, max: 10, step: 1 },
-    { id: 'product_strength_req',  label: 'Strength Score',   min: 1, max: 10, step: 1 },
-    { id: 'barrier_score',         label: 'Barrier Score',    min: 1, max: 10, step: 1 },
-    { id: 'reuse_potential_score', label: 'Reuse Potential',  min: 1, max: 10, step: 1 },
+    { id: 'weight_capacity_score', label: 'Weight Capacity', min: 1, max: 10, step: 1, apiKey: 'weight_capacity_score' },
+    { id: 'product_strength_req', label: 'Strength Score', min: 1, max: 10, step: 1, apiKey: 'strength_score' },
+    { id: 'barrier_score', label: 'Barrier Score', min: 1, max: 10, step: 1, apiKey: 'barrier_score' },
+    { id: 'reuse_potential_score', label: 'Reuse Potential', min: 1, max: 10, step: 1, apiKey: 'reuse_potential_score' },
+    { id: 'material_strength', label: 'Material Strength', min: 1, max: 10, step: 1, apiKey: 'material_strength' },
+    { id: 'biodegradability', label: 'Biodegradability', min: 0.1, max: 1.0, step: 0.1, apiKey: 'biodegradability' },
+    { id: 'recyclability_percent', label: 'Recyclability %', min: 0, max: 100, step: 1, apiKey: 'recyclability_percent' },
 ];
 
 /* ── Per-field validation ── */
 function validateField(rule) {
-    const el  = document.getElementById(rule.id);
+    const el = document.getElementById(rule.id);
     const err = document.getElementById('err_' + rule.id);
     if (!el || !err) return true;
 
@@ -89,7 +92,7 @@ function validateField(rule) {
 
 function setFieldState(el, errEl, state, msg) {
     el.classList.toggle('input-error', state === 'error');
-    el.classList.toggle('input-ok',    state === 'ok');
+    el.classList.toggle('input-ok', state === 'ok');
     errEl.textContent = msg;
 }
 
@@ -153,7 +156,7 @@ function predict() {
 
     const data = {};
     FIELD_RULES.forEach(rule => {
-        data[rule.id] = parseFloat(document.getElementById(rule.id).value);
+        data[rule.apiKey] = parseFloat(document.getElementById(rule.id).value);
     });
 
     const btn = document.querySelector('#dashboard .btn-primary-eco');
@@ -167,106 +170,89 @@ function predict() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     })
-    .then(res => {
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-        return res.json();
-    })
-    .then(result => {
-        // API returns a flat array of materials
-        const data = Array.isArray(result) ? { materials: result } : result;
-        updateDashboard(data);
-        scrollToSection('analyticsSection');
-    })
-    .catch(err => {
-        console.error("Predict error:", err);
-        showError("Could not reach the API. Please check the server and try again.");
-    })
-    .finally(() => {
-        if (btn) {
-            btn.innerHTML = '<i class="bi bi-lightning-charge-fill"></i> Run AI Analysis';
-            btn.disabled = false;
-        }
-    });
+        .then(res => {
+            if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+            return res.json();
+        })
+        .then(result => {
+            updateDashboard(result);
+            scrollToSection('analyticsSection');
+        })
+        .catch(err => {
+            console.error("Predict error:", err);
+            showError("Could not reach the API. Please check the server and try again.");
+        })
+        .finally(() => {
+            if (btn) {
+                btn.innerHTML = '<i class="bi bi-lightning-charge-fill"></i> Run AI Analysis';
+                btn.disabled = false;
+            }
+        });
 }
 
 /* ============ UPDATE DASHBOARD ============ */
 function updateDashboard(result) {
-    // API returns a flat array — normalise it
-    const materials = Array.isArray(result) ? result : (
-        result.recommended_materials ||
-        result.recommendations        ||
-        result.materials              ||
-        result.top_materials          ||
-        []
-    );
+    // Log full API response so we can inspect the exact keys
+    console.log("API response:", JSON.stringify(result, null, 2));
 
-    if (!Array.isArray(materials) || materials.length === 0) {
-        showError("API returned no materials. Check the server response.");
-        return;
-    }
+    animateValue("predicted_cost", result.predicted_cost);
+    animateValue("predicted_co2", result.predicted_co2);
 
-    // Top-level metrics: use first item values since API embeds them per-material
-    const first = materials[0];
-    animateValue("predicted_cost", first.predicted_cost);
-    animateValue("predicted_co2",  first.predicted_co2);
-
-    // Compute avg cost saving vs highest-cost material as a simple indicator
-    const costs = materials.map(m => m.predicted_cost);
-    const maxCost = Math.max(...costs);
-    const co2s = materials.map(m => m.predicted_co2);
-    const maxCo2 = Math.max(...co2s);
-
-    const co2El  = document.getElementById("co2_reduction");
+    const co2El = document.getElementById("co2_reduction");
     const costEl = document.getElementById("cost_savings");
-    if (co2El)  co2El.textContent = maxCo2 > 0
-        ? (((maxCo2 - first.predicted_co2) / maxCo2) * 100).toFixed(1) + "%"
-        : "—";
-    if (costEl) costEl.textContent = maxCost > 0
-        ? (((maxCost - first.predicted_cost) / maxCost) * 100).toFixed(1) + "%"
-        : "—";
+    if (co2El) co2El.textContent = result.co2_reduction_percent;
+    if (costEl) costEl.textContent = result.cost_savings_percent;
 
     const container = document.getElementById("materials");
     if (!container) return;
     container.innerHTML = "";
 
-    // Show top 5 only
-    const top5 = materials.slice(0, 5);
+    // Accept whichever key the API returns
+    const materials =
+        result.recommended_materials ||
+        result.recommendations ||
+        result.materials ||
+        result.top_materials ||
+        null;
+
+    if (!Array.isArray(materials) || materials.length === 0) {
+        console.error("No materials array in response. Keys:", Object.keys(result));
+        showError("API returned no materials. Check the server response (see console for details).");
+        return;
+    }
+
+    const names = [], co2 = [], strength = [], recycle = [], bio = [];
     const rankClasses = ["", "r2", "r3", "r4", "r5"];
-    const names = [], co2vals = [], costvals = [], scorevals = [];
 
-    top5.forEach((item, index) => {
-        const name  = item.material || item.material_name || "Unknown";
-        const co2   = item.predicted_co2  !== undefined ? parseFloat(item.predicted_co2).toFixed(2)  : "—";
-        const cost  = item.predicted_cost !== undefined ? parseFloat(item.predicted_cost).toFixed(2)  : "—";
-        const score = item.suitability_score !== undefined ? parseFloat(item.suitability_score).toFixed(3) : "—";
-
+    materials.forEach((item, index) => {
         container.innerHTML += `
         <div class="material-card" style="animation-delay:${index * 60}ms">
             <span class="material-rank ${rankClasses[index] || "r5"}">0${index + 1}</span>
-            <span class="material-name">${name}</span>
+            <span class="material-name">${item.material_name}</span>
             <div class="material-stats">
                 <div class="material-stat">
                     <span>CO&#8322; Score</span>
-                    <strong>${co2}</strong>
+                    <strong>${item.co2_emission_score}</strong>
                 </div>
                 <div class="material-stat">
-                    <span>Cost</span>
-                    <strong>$${cost}</strong>
+                    <span>Recycle</span>
+                    <strong>${item.recyclability_percent}%</strong>
                 </div>
                 <div class="material-stat">
-                    <span>Suitability</span>
-                    <strong>${score}</strong>
+                    <span>Strength</span>
+                    <strong>${item.strength_score}/10</strong>
                 </div>
             </div>
         </div>`;
 
-        names.push(name);
-        co2vals.push(parseFloat(item.predicted_co2)  || 0);
-        costvals.push(parseFloat(item.predicted_cost) || 0);
-        scorevals.push(parseFloat(item.suitability_score) || 0);
+        names.push(item.material_name);
+        co2.push(item.co2_emission_score);
+        strength.push(item.strength_score);
+        recycle.push(item.recyclability_percent);
+        bio.push(item.biodegradability_score);
     });
 
-    renderCharts(names, co2vals, costvals, scorevals);
+    renderCharts(names, co2, strength, recycle, bio);
 }
 
 /* ============ CHARTS ============ */
@@ -280,90 +266,64 @@ const chartDefaults = {
     }
 };
 
-function renderCharts(names, co2vals, costvals, scorevals) {
+function renderCharts(names, co2, strength, recycle, bio) {
     [co2Chart, strengthChart, recycleChart, radarChart].forEach(c => c && c.destroy());
 
-    // Chart 1 — CO₂ score (horizontal bar)
     co2Chart = new Chart(document.getElementById("co2Chart"), {
         type: "bar",
         data: {
             labels: names,
-            datasets: [{ label: "Predicted CO₂", data: co2vals, backgroundColor: "rgba(255,77,109,0.8)", borderRadius: 6 }]
+            datasets: [{ label: "CO₂ Score (lower = better)", data: co2, backgroundColor: "rgba(255,77,109,0.8)", borderRadius: 6 }]
         },
-        options: { ...chartDefaults, indexAxis: "y" }
+        options: { ...chartDefaults, indexAxis: 'y' }
     });
 
-    // Chart 2 — Predicted cost
     strengthChart = new Chart(document.getElementById("strengthChart"), {
         type: "bar",
         data: {
             labels: names,
-            datasets: [{ label: "Predicted Cost ($)", data: costvals, backgroundColor: "rgba(76,201,240,0.8)", borderRadius: 6 }]
+            datasets: [{ label: "Strength (1–10)", data: strength, backgroundColor: "rgba(76,201,240,0.8)", borderRadius: 6 }]
         },
-        options: {
-            ...chartDefaults,
-            scales: {
-                ...chartDefaults.scales,
-                y: { ...chartDefaults.scales.y, beginAtZero: false }
-            }
-        }
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0, max: 10 } } }
     });
 
-    // Chart 3 — Suitability score (line)
     recycleChart = new Chart(document.getElementById("recycleChart"), {
         type: "line",
         data: {
             labels: names,
             datasets: [{
-                label: "Suitability Score", data: scorevals,
+                label: "Recyclability %", data: recycle,
                 borderColor: "#00ffd5", backgroundColor: "rgba(0,255,213,0.08)",
                 pointBackgroundColor: "#00ffd5", tension: 0.4, fill: true, pointRadius: 5
             }]
         },
-        options: {
-            ...chartDefaults,
-            scales: {
-                ...chartDefaults.scales,
-                y: { ...chartDefaults.scales.y, beginAtZero: false }
-            }
-        }
+        options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 0, max: 100 } } }
     });
-
-    // Chart 4 — Radar: CO₂ vs Cost vs Suitability normalised
-    const maxCo2   = Math.max(...co2vals)   || 1;
-    const maxCost  = Math.max(...costvals)  || 1;
-    const maxScore = Math.max(...scorevals) || 1;
 
     radarChart = new Chart(document.getElementById("radarChart"), {
         type: "radar",
         data: {
             labels: names,
-            datasets: [
-                {
-                    label: "CO₂ (norm)", data: co2vals.map(v => +(v / maxCo2 * 10).toFixed(2)),
-                    backgroundColor: "rgba(255,77,109,0.1)", borderColor: "#ff4d6d",
-                    pointBackgroundColor: "#ff4d6d", borderWidth: 2, pointRadius: 3
-                },
-                {
-                    label: "Suitability (norm)", data: scorevals.map(v => +(v / maxScore * 10).toFixed(2)),
-                    backgroundColor: "rgba(0,255,213,0.1)", borderColor: "#00ffd5",
-                    pointBackgroundColor: "#00ffd5", borderWidth: 2, pointRadius: 3
-                }
-            ]
+            datasets: [{
+                label: "Biodegradability", data: bio,
+                backgroundColor: "rgba(0,255,213,0.12)", borderColor: "#00ffd5",
+                pointBackgroundColor: "#00ffd5", borderWidth: 2, pointRadius: 4
+            }]
         },
         options: {
             plugins: { legend: chartDefaults.plugins.legend },
             scales: {
                 r: {
-                    grid: { color: "rgba(255,255,255,0.08)" },
-                    angleLines: { color: "rgba(255,255,255,0.08)" },
-                    pointLabels: { color: "#94a3b8", font: { family: "DM Sans", size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.08)' },
+                    angleLines: { color: 'rgba(255,255,255,0.08)' },
+                    pointLabels: { color: '#94a3b8', font: { family: 'DM Sans', size: 11 } },
                     ticks: { display: false }
                 }
             }
         }
     });
 }
+
 /* ============ MODE SWITCHING ============ */
 function showManual() {
     document.getElementById("dashboard").style.display = "block";
@@ -424,11 +384,11 @@ function selectOption(value) {
     addUserMessage(value);
     document.getElementById("options").innerHTML = "";
 
-    if (wizardStep === 0)      wizardData.product   = value;
-    else if (wizardStep === 1) wizardData.fragility  = value;
-    else if (wizardStep === 2) wizardData.weight     = value;
-    else if (wizardStep === 3) wizardData.eco        = value;
-    else if (wizardStep === 4) wizardData.reuse      = value;
+    if (wizardStep === 0) wizardData.product = value;
+    else if (wizardStep === 1) wizardData.fragility = value;
+    else if (wizardStep === 2) wizardData.weight = value;
+    else if (wizardStep === 3) wizardData.eco = value;
+    else if (wizardStep === 4) wizardData.reuse = value;
 
     wizardStep++;
     setTimeout(nextWizardStep, 400);
@@ -436,11 +396,11 @@ function selectOption(value) {
 
 function nextWizardStep() {
     const steps = [
-        { msg: "What type of product are you packaging?",  opts: ["Food", "Electronics", "Fragile Item", "General Product"] },
-        { msg: "How fragile is the product?",              opts: ["Low", "Medium", "High"] },
-        { msg: "What is the weight category?",             opts: ["Light (<1kg)", "Medium (1–5kg)", "Heavy (>5kg)"] },
-        { msg: "How important is sustainability?",         opts: ["Low Priority", "Balanced", "Maximum Sustainability"] },
-        { msg: "Should the packaging be reusable?",        opts: ["Not Required", "Reusable", "Highly Reusable"] }
+        { msg: "What type of product are you packaging?", opts: ["Food", "Electronics", "Fragile Item", "General Product"] },
+        { msg: "How fragile is the product?", opts: ["Low", "Medium", "High"] },
+        { msg: "What is the weight category?", opts: ["Light (<1kg)", "Medium (1–5kg)", "Heavy (>5kg)"] },
+        { msg: "How important is sustainability?", opts: ["Low Priority", "Balanced", "Maximum Sustainability"] },
+        { msg: "Should the packaging be reusable?", opts: ["Not Required", "Reusable", "Highly Reusable"] }
     ];
 
     if (wizardStep < steps.length) {
@@ -454,18 +414,19 @@ function nextWizardStep() {
 }
 
 function runAIWizardPrediction() {
-    const strength         = wizardData.fragility === "High" ? 9 : wizardData.fragility === "Medium" ? 6 : 4;
-    const weightCapacity   = wizardData.weight?.includes("Heavy") ? 9 : wizardData.weight?.includes("Medium") ? 6 : 4;
-    const barrier          = wizardData.product === "Food" ? 8 : 5;
-    const reuseScore       = wizardData.reuse === "Highly Reusable" ? 9 : wizardData.reuse === "Reusable" ? 6 : 3;
+    const strength = wizardData.fragility === "High" ? 9 : wizardData.fragility === "Medium" ? 6 : 4;
+    const weightCapacity = wizardData.weight?.includes("Heavy") ? 9 : wizardData.weight?.includes("Medium") ? 6 : 4;
+    const barrier = wizardData.product === "Food" ? 8 : 5;
+    const reuseScore = wizardData.reuse === "Highly Reusable" ? 9 : wizardData.reuse === "Reusable" ? 6 : 3;
     const biodegradability = wizardData.eco === "Maximum Sustainability" ? 0.9 : wizardData.eco === "Balanced" ? 0.6 : 0.3;
-    const recyclability    = wizardData.eco === "Maximum Sustainability" ? 90  : wizardData.eco === "Balanced" ? 70  : 50;
+    const recyclability = wizardData.eco === "Maximum Sustainability" ? 90 : wizardData.eco === "Balanced" ? 70 : 50;
 
     const data = {
         weight_capacity_score: weightCapacity,
-        product_strength_req:  strength,
-        barrier_score:         barrier,
+        strength_score: strength,
+        barrier_score: barrier,
         reuse_potential_score: reuseScore,
+        material_strength: strength,
         biodegradability,
         recyclability_percent: recyclability
     };
@@ -475,18 +436,17 @@ function runAIWizardPrediction() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     })
-    .then(res => {
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-        return res.json();
-    })
-    .then(result => {
-        const data = Array.isArray(result) ? { materials: result } : result;
-        addBotMessage("✅ Analysis complete! Scroll down to see the best sustainable packaging materials.");
-        updateDashboard(data);
-        scrollToSection('analyticsSection');
-    })
-    .catch(err => {
-        console.error("Wizard predict error:", err);
-        addBotMessage("❌ Could not reach the API. Please check the server and try again.");
-    });
+        .then(res => {
+            if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+            return res.json();
+        })
+        .then(result => {
+            addBotMessage("✅ Analysis complete! Scroll down to see the best sustainable packaging materials.");
+            updateDashboard(result);
+            scrollToSection('analyticsSection');
+        })
+        .catch(err => {
+            console.error("Wizard predict error:", err);
+            addBotMessage("❌ Could not reach the API. Please check the server and try again.");
+        });
 }
